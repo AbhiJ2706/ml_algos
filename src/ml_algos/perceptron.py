@@ -32,4 +32,3 @@ class Perceptron:
     
     def predict(self, X: pd.DataFrame):
         return X.apply(self.predict_single, axis="columns")
-    
