@@ -1,17 +1,14 @@
 import numpy as np
 import pandas as pd
 
-from matplotlib import pyplot as plt
-from sklearn.metrics import accuracy_score
-from sklearn.preprocessing import StandardScaler
-
+from ml_algos.classification_test import diabetes_test
 from ml_algos.model import BaseModel
 
 
 class LogisticRegression(BaseModel):
-    def __init__(self, num_features, lr=0.1):
+    def __init__(self, lr=0.1, verbose=False):
         self.lr = lr
-        self.W = np.zeros(num_features + 1)
+        super(LogisticRegression, self).__init__(verbose=verbose)
     
     def __sigmoid(self, x):
         return 1 / (1 + np.exp(-x))
@@ -33,27 +30,16 @@ class LogisticRegression(BaseModel):
         forward = X.apply(self.__forward, axis="columns")
         return self.__backward(y, forward, X)
     
-    def fit(self, X: pd.DataFrame, y: pd.DataFrame, iterations: int):
+    def _fit(self, X: pd.DataFrame, y: pd.DataFrame, iterations: int=100):
+        self.W = np.zeros(len(X.columns) + 1)
         for i in range(iterations):
-            print(f"iteration {i + 1}/{iterations}: BCE", self.__train(X, y))
+            loss = self.__train(X, y)
+            if self.verbose:
+                print(f"iteration {i + 1}/{iterations}: BCE", loss)
     
-    def predict(self, X: pd.DataFrame):
+    def _predict(self, X: pd.DataFrame):
         return X.apply(self.__forward, axis="columns")
 
 
 if __name__ == "__main__":
-    X = pd.read_csv("data/pima-indians-diabetes.csv")
-    del X["y"]
-    y = pd.read_csv("data/pima-indians-diabetes.csv")["y"]
-
-    for col in X.columns:
-        X[col] = StandardScaler().fit_transform(X[col].to_numpy().reshape((-1, 1)))
-
-    model = LogisticRegression(8, 0.01)
-    model.fit(X, y, 5000)
-    print(model.W)
-    print(accuracy_score(y, np.where(model.predict(X) > 0.5, 1, 0)))
-
-    plt.scatter(X.index, y)
-    plt.scatter(X.index, model.predict(X))
-    plt.show()   
+    diabetes_test(LogisticRegression(0.01), iterations=5000)
