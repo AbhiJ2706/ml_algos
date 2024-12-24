@@ -7,8 +7,10 @@ from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
+from ml_algos.model import BaseModel
 
-class SVMRegressor:
+
+class SVMRegressor(BaseModel):
     def __init__(self, epsilon: float=0.1, c: float=0.1):
         self._trained = False
         self.epsilon = epsilon

@@ -5,8 +5,10 @@ from matplotlib import pyplot as plt
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import StandardScaler
 
+from ml_algos.model import BaseModel
 
-class LogisticRegression:
+
+class LogisticRegression(BaseModel):
     def __init__(self, num_features, lr=0.1):
         self.lr = lr
         self.W = np.zeros(num_features + 1)
@@ -31,7 +33,7 @@ class LogisticRegression:
         forward = X.apply(self.__forward, axis="columns")
         return self.__backward(y, forward, X)
     
-    def train(self, X: pd.DataFrame, y: pd.DataFrame, iterations: int):
+    def fit(self, X: pd.DataFrame, y: pd.DataFrame, iterations: int):
         for i in range(iterations):
             print(f"iteration {i + 1}/{iterations}: BCE", self.__train(X, y))
     
@@ -48,7 +50,7 @@ if __name__ == "__main__":
         X[col] = StandardScaler().fit_transform(X[col].to_numpy().reshape((-1, 1)))
 
     model = LogisticRegression(8, 0.01)
-    model.train(X, y, 5000)
+    model.fit(X, y, 5000)
     print(model.W)
     print(accuracy_score(y, np.where(model.predict(X) > 0.5, 1, 0)))
 

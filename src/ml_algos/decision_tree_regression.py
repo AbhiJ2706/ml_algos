@@ -8,8 +8,10 @@ from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
+from ml_algos.model import BaseModel
 
-class DecisionTree:
+
+class DecisionTree(BaseModel):
     class FeatureChoice(Enum):
         ALL = lambda x: x
         HALF = lambda x: DecisionTree.FeatureChoice.__subsample(x, len(x.columns) // 2)
