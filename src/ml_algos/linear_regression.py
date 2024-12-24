@@ -27,14 +27,14 @@ class LinearRegression(BaseModel):
         forward = X.apply(self.__forward, axis="columns")
         return self.__backward(y, forward, X)
     
-    def fit(self, X: pd.DataFrame, y: pd.DataFrame | np.ndarray, iterations: int):
+    def _fit(self, X: pd.DataFrame, y: pd.DataFrame | np.ndarray, iterations: int):
         self.W = np.zeros(len(X.columns) + 1)
         for i in range(iterations):
             loss = self.__train(X, y)
             if self.verbose:
                 print(f"iteration {i + 1}/{iterations}: MSE", loss)
     
-    def predict(self, X: pd.DataFrame):
+    def _predict(self, X: pd.DataFrame):
         return X.apply(self.__forward, axis="columns")
     
 
@@ -61,14 +61,14 @@ class RidgeRegression(BaseModel):
         forward = X.apply(self.__forward, axis="columns")
         return self.__backward(y, forward, X)
     
-    def fit(self, X: pd.DataFrame, y: pd.DataFrame, iterations: int):
+    def _fit(self, X: pd.DataFrame, y: pd.DataFrame, iterations: int):
         self.W = np.zeros(len(X.columns) + 1)
         for i in range(iterations):
             loss = self.__train(X, y)
             if self.verbose:
                 print(f"iteration {i + 1}/{iterations}: MSE", loss)
     
-    def predict(self, X: pd.DataFrame):
+    def _predict(self, X: pd.DataFrame):
         return X.apply(self.__forward, axis="columns")
     
 
