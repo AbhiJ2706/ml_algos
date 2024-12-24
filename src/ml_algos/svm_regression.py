@@ -3,11 +3,13 @@ import numpy as np
 import pandas as pd
 
 from matplotlib import pyplot as plt
+from sklearn.metrics import r2_score, mean_squared_error
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 
 class SVMRegressor:
-    def __init__(self, epsilon=0.1, c=0.1):
+    def __init__(self, epsilon: float=0.1, c: float=0.1):
         self._trained = False
         self.epsilon = epsilon
         self.c = c
@@ -53,3 +55,20 @@ if __name__ == "__main__":
     plt.scatter(data["YearsExperience"], model.predict(pd.DataFrame({"YearsExperience": data["YearsExperience"]})))
     plt.scatter(data["YearsExperience"], data["Salary"].to_numpy())
     plt.show()
+
+    data = pd.read_csv("data/real_estate_dataset.csv")
+    for col in data.columns:
+        data[col] = StandardScaler().fit_transform(data[col].to_numpy().reshape((-1, 1)))
+        
+    X_train, X_test, y_train, y_test = train_test_split(data, data["Price"], test_size=0.33, random_state=42)
+    del X_train["ID"]
+    del X_test["ID"]
+    del X_train["Price"]
+    del X_test["Price"]
+    
+    model = SVMRegressor(c=1)
+    model.fit(X_train, y_train, 100)
+    print(model.W)
+
+    y_pred = model.predict(X_test)
+    print(f"R2 score: {r2_score(y_test, y_pred)}, MSE: {mean_squared_error(y_test, y_pred)}")
