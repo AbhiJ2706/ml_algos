@@ -90,7 +90,7 @@ class DecisionTree(BaseModel):
             if not self.left and not self.right:
                 return ' ' * (4 * self.depth) + f"Prediction: {self.leaf_label}"
             return f"{' ' * (4 * self.depth) if not self.left else ''}{self.left}\n" + \
-                f"{' ' * (4 * self.depth)}(j, t) = ({self.j}, {self.t})\n" + \
+                f"{' ' * (4 * self.depth)}{self.j} = {self.t}\n" + \
                 f"{' ' * (4 * self.depth) if not self.right else ''}{self.right}"
    
     def __init__(self, max_depth=10, feature_choice=FeatureChoice.ALL):
@@ -105,7 +105,6 @@ class DecisionTree(BaseModel):
         nodes = [(training_df, self.head)]
         while nodes:
             (tdf, current_split_node) = nodes.pop(0)
-            # STOPPING CRITERIA: MAXIMUM DEPTH
             if current_split_node.depth == self.max_depth:
                 continue
             j, t = current_split_node.fit(tdf)
