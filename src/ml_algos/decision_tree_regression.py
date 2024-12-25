@@ -13,7 +13,7 @@ from ml_algos.model import BaseModel
 from ml_algos.regression_test import real_estate_test
 
 
-class DecisionTree(BaseModel):
+class DecisionTreeRegressor(BaseModel):
     class SearchMethod(Enum):
         BFS = 0
         DFS = -1
@@ -23,8 +23,8 @@ class DecisionTree(BaseModel):
             self.depth: int = depth
             self.min_entries: int = min_entries
             self.leaf_label: float | int = None
-            self.left: DecisionTree.Node = None
-            self.right: DecisionTree.Node = None
+            self.left: DecisionTreeRegressor.Node = None
+            self.right: DecisionTreeRegressor.Node = None
             self.feature: str = None
             self.value: float | int = None
             self.size: int = None
@@ -87,10 +87,10 @@ class DecisionTree(BaseModel):
         self.max_depth = max_depth
         self.min_entries = min_entries
         self.search_method = search_method
-        super(DecisionTree, self).__init__()
+        super(DecisionTreeRegressor, self).__init__()
 
     def _fit(self, X: pd.DataFrame, y: pd.DataFrame | np.ndarray, **kwargs):
-        self.head = DecisionTree.Node(min_entries=self.min_entries)
+        self.head = DecisionTreeRegressor.Node(min_entries=self.min_entries)
         nodes = [(X, y, self.head)]
         while nodes:
             (X_current, y_current, current_split_node) = nodes.pop(self.search_method.value)
@@ -104,10 +104,10 @@ class DecisionTree(BaseModel):
             y_lt = y_current[lt_mask]
             y_gt = y_current[gt_mask]
             if len(X_lt):
-                current_split_node.left = DecisionTree.Node(current_split_node.depth + 1, self.min_entries)
+                current_split_node.left = DecisionTreeRegressor.Node(current_split_node.depth + 1, self.min_entries)
                 nodes.append((X_lt, y_lt, current_split_node.left))
             if len(X_gt):
-                current_split_node.right = DecisionTree.Node(current_split_node.depth + 1, self.min_entries)
+                current_split_node.right = DecisionTreeRegressor.Node(current_split_node.depth + 1, self.min_entries)
                 nodes.append((X_gt, y_gt, current_split_node.right))
 
     def _predict(self, X: pd.DataFrame):
@@ -121,4 +121,4 @@ class DecisionTree(BaseModel):
 
 
 if __name__ == "__main__":
-    real_estate_test(DecisionTree())
+    real_estate_test(DecisionTreeRegressor())
