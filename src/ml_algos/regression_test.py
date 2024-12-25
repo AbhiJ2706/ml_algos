@@ -17,8 +17,6 @@ def salary_test(model: BaseModel, scale=False, **kwargs):
 
     model.fit(pd.DataFrame({"YearsExperience": data["YearsExperience"]}), data["Salary"], **kwargs)
     y_test = model.predict(pd.DataFrame({"YearsExperience": data["YearsExperience"]}))
-    
-    print(model.W)
 
     print(f"R2 score: {r2_score(y_test, data['Salary'])}, MSE: {mean_squared_error(y_test, data['Salary'])}")
     plt.scatter(data["YearsExperience"], model.predict(pd.DataFrame({"YearsExperience": data["YearsExperience"]})))
@@ -39,7 +37,6 @@ def real_estate_test(model: BaseModel, scale=False, **kwargs):
     del X_test["Price"]
     
     model.fit(X_train, y_train, **kwargs)
-    print(model.W)
 
     y_pred = model.predict(X_test)
     print(f"R2 score: {r2_score(y_test, y_pred)}, MSE: {mean_squared_error(y_test, y_pred)}")
