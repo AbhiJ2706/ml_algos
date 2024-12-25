@@ -34,13 +34,13 @@ class DecisionTreeRegressor(BaseModel):
             
             best_feature = None
             best_value = None
-            j_loss = float("inf")
+            lowest_loss = float("inf")
             for feat in X.columns:
                 thresholds = pd.unique(X[feat])
                 for feat_value in thresholds:
                     loss = self.loss(X, y, feat, feat_value)
-                    if loss < j_loss:
-                        j_loss = loss
+                    if loss < lowest_loss:
+                        lowest_loss = loss
                         best_feature = feat
                         best_value = feat_value
 
@@ -114,7 +114,7 @@ class DecisionTreeRegressor(BaseModel):
     def __str__(self):
         tree_structure = treelib.Tree()
         nodes = [(self.head, None)]
-        
+
         while nodes:
             (node_current, parent) = nodes.pop(0)
             if parent:
