@@ -5,12 +5,23 @@ from tqdm import trange
 
 from ml_algos.classification_test import iris_test
 from ml_algos.model import BaseModel
+from ml_algos.regression_test import real_estate_test
 
 import math
 
 from enum import Enum
 
-from ml_algos.regression_test import real_estate_test
+
+class OptimizerType(Enum):
+    DEFAULT = 0
+    MOMENTUM = 1
+
+
+class Optimizer:
+    def __init__(self, optimizer_type: OptimizerType=OptimizerType.DEFAULT, **kwargs):
+        self.optimizer_type = optimizer_type
+        if optimizer_type == OptimizerType.MOMENTUM:
+            self.momentum_rate = kwargs["momentum_rate"]
 
 
 class MultiLayerPerceptron(BaseModel):
@@ -85,6 +96,20 @@ class MultiLayerPerceptron(BaseModel):
 
         super(MultiLayerPerceptron, self).__init__(verbose=verbose)
     
+    def __optimizer(self, weight_gradients: list[np.ndarray], optimizer: Optimizer):
+        if optimizer.optimizer_type == OptimizerType.MOMENTUM:
+            previous_gradients = getattr(self, "previous_gradients", None)
+            if previous_gradients:
+                new_gradients = [
+                    gradient + optimizer.momentum_rate * prev for (gradient, prev) in zip(weight_gradients, previous_gradients)
+                ]
+            else:
+                new_gradients = weight_gradients
+            self.previous_gradients = new_gradients
+            return new_gradients
+        
+        return weight_gradients
+    
     def __forward(self, X: pd.DataFrame):
         X_current = X.to_numpy()
         X_current = np.concatenate((X_current, np.ones((X_current.shape[0], 1))), axis=1)
@@ -101,7 +126,7 @@ class MultiLayerPerceptron(BaseModel):
 
         return self.post_activations[-1][:, :-1]
     
-    def __backward(self, H: np.ndarray, y: np.ndarray, learning_rate: float):
+    def __backward(self, H: np.ndarray, y: np.ndarray, learning_rate: float, optimizer: Optimizer):
         dldH = self.loss_gradient(H, y)
         dldZ = dldH * self.activation_gradients[-1](self.pre_activations[-1])
         weight_gradients = []
@@ -114,33 +139,38 @@ class MultiLayerPerceptron(BaseModel):
                 dldH = dldH_1[:, :-1]
                 dldZ = dldH * self.activation_gradients[-i - 1](self.pre_activations[-i - 1])
         
-        weight_gradients = weight_gradients[::-1]
+        weight_gradients = self.__optimizer(weight_gradients[::-1], optimizer)
         for i in range(len(self.W)):
             self.W[i] = self.W[i] - learning_rate * weight_gradients[i]
         return self.loss(H, y)
     
     def __train_batch(self, X: pd.DataFrame, y: np.ndarray, learning_rate: float):
         H = self.__forward(X)
-        return self.__backward(H, y, learning_rate)
+
+        return self.__backward(H, y, learning_rate, Optimizer())
 
     def __train_minibatch(self, X: pd.DataFrame, y: np.ndarray, learning_rate: float, batch_size: int):
         num_batches = X.shape[0] // batch_size
         total_loss = 0
+
         for i in range(num_batches):
             H = self.__forward(X.iloc[i:i + batch_size])
-            total_loss += self.__backward(H, y[i:i + batch_size, :], learning_rate)
+            total_loss += self.__backward(H, y[i:i + batch_size, :], learning_rate, Optimizer())
+
         return total_loss / num_batches
     
-    def __train_stochastic(self, X: pd.DataFrame, y: np.ndarray, learning_rate: float, batch_size: int):
+    def __train_stochastic(self, X: pd.DataFrame, y: np.ndarray, learning_rate: float, batch_size: int, optimizer: Optimizer):
         num_batches = X.shape[0] // batch_size
         max_amount = num_batches * batch_size
         total_loss = 0
         sample_selection = np.random.choice(X.shape[0], max_amount, replace=False)
         X_sampled = X.iloc[sample_selection]
         y_sampled = y[sample_selection, :]
+
         for i in range(num_batches):
             H = self.__forward(X_sampled[i:i + batch_size])
-            total_loss += self.__backward(H, y_sampled[i:i + batch_size, :], learning_rate)
+            total_loss += self.__backward(H, y_sampled[i:i + batch_size, :], learning_rate, optimizer)
+
         return total_loss / num_batches
 
     def _fit(
@@ -151,7 +181,8 @@ class MultiLayerPerceptron(BaseModel):
         learning_rate: 
         float=0.1, 
         batch_size: int=32, 
-        backward_method: GradientDescentMethod=GradientDescentMethod.BATCH
+        backward_method: GradientDescentMethod=GradientDescentMethod.BATCH,
+        optimizer: Optimizer=Optimizer()
     ):
         with trange(iterations) as pbar:
             for _ in pbar:
@@ -160,7 +191,7 @@ class MultiLayerPerceptron(BaseModel):
                 elif backward_method == MultiLayerPerceptron.GradientDescentMethod.MINIBATCH:
                     loss = self.__train_minibatch(X, y, learning_rate, batch_size)
                 elif backward_method == MultiLayerPerceptron.GradientDescentMethod.STOCHASTIC:
-                    loss = self.__train_stochastic(X, y, learning_rate, batch_size)
+                    loss = self.__train_stochastic(X, y, learning_rate, batch_size, optimizer)
                 pbar.set_description(f"Loss: {loss:.4f}")
     
     def _predict(self, X: pd.DataFrame):
@@ -185,6 +216,17 @@ if __name__ == "__main__":
         iterations=1000, 
         learning_rate=0.1
     )
+
+    model = MultiLayerPerceptron(
+        4,
+        [5, 3],
+        [
+            MultiLayerPerceptron.Activation.RELU,
+            MultiLayerPerceptron.Activation.SOFTMAX
+        ],
+        MultiLayerPerceptron.Loss.CROSS_ENTROPY,
+    )
+
     iris_test(
         model, 
         scale=True, 
@@ -193,6 +235,17 @@ if __name__ == "__main__":
         learning_rate=0.1, 
         backward_method=MultiLayerPerceptron.GradientDescentMethod.MINIBATCH
     )
+
+    model = MultiLayerPerceptron(
+        4,
+        [5, 3],
+        [
+            MultiLayerPerceptron.Activation.RELU,
+            MultiLayerPerceptron.Activation.SOFTMAX
+        ],
+        MultiLayerPerceptron.Loss.CROSS_ENTROPY,
+    )
+
     iris_test(
         model, 
         scale=True, 
@@ -200,6 +253,26 @@ if __name__ == "__main__":
         iterations=1000, 
         learning_rate=0.1, 
         backward_method=MultiLayerPerceptron.GradientDescentMethod.STOCHASTIC
+    )
+
+    model = MultiLayerPerceptron(
+        4,
+        [5, 3],
+        [
+            MultiLayerPerceptron.Activation.RELU,
+            MultiLayerPerceptron.Activation.SOFTMAX
+        ],
+        MultiLayerPerceptron.Loss.CROSS_ENTROPY,
+    )
+
+    iris_test(
+        model, 
+        scale=True, 
+        one_hot_encode=True, 
+        iterations=100, 
+        learning_rate=0.1, 
+        backward_method=MultiLayerPerceptron.GradientDescentMethod.STOCHASTIC,
+        optimizer=Optimizer(OptimizerType.MOMENTUM, momentum_rate=0.8)
     )
 
     model = MultiLayerPerceptron(
