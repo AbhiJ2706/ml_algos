@@ -17,9 +17,17 @@ class MultiLayerPerceptron(BaseModel):
             "function": lambda x: 1 / (1 + np.exp(-x)),
             "gradient": lambda x: (1 / (1 + np.exp(-x))) * (1 - (1 / (1 + np.exp(-x))))
         }
+        RELU = {
+            "function": lambda x: np.max(x, 0),
+            "gradient": lambda x: np.max(x, 0) / x
+        }
+        TANH = {
+            "function": lambda x: (np.exp(x) - np.exp(-x)) / (np.exp(x) + np.exp(-x)),
+            "gradient": lambda x: 1 - (np.exp(x) - np.exp(-x)) ** 2 / (np.exp(x) + np.exp(-x)) ** 2
+        }
     
     class Loss(Enum):
-        MEAN_SQUARED_ERROR = {
+        MEAN_SQUARED = {
             "function": lambda x, y: np.mean((x - y) ** 2),
             "gradient": lambda x, y: 2 * (x - y),
         }
@@ -28,9 +36,10 @@ class MultiLayerPerceptron(BaseModel):
         GLOROT = lambda n, size: np.random.uniform(-1 / math.sqrt(n), 1 / math.sqrt(n), size=size)
         HE = lambda n, size: np.random.normal(0, 2 / n, size=size)
     
-    class BackwardMethod(Enum):
-        BATCH_GRADIENT_DESCENT = 0
-        STOCHASTIC_GRADIENT_DESCENT = 1
+    class GradientDescentMethod(Enum):
+        BATCH = 0
+        STOCHASTIC = 1
+        MINIBATCH = 2
 
     def __init__(
         self, 
@@ -39,7 +48,7 @@ class MultiLayerPerceptron(BaseModel):
         activations: list[Activation], 
         loss: Loss,
         weight_initialization: WeightInitialization = WeightInitialization.GLOROT,
-        backward_method: BackwardMethod = BackwardMethod.BATCH_GRADIENT_DESCENT,
+        backward_method: GradientDescentMethod = GradientDescentMethod.BATCH,
         verbose=False
     ):
         self.num_input_features = num_input_features
@@ -113,7 +122,7 @@ if __name__ == "__main__":
         4,
         [5, 3],
         [MultiLayerPerceptron.Activation.SIGMOID for _ in range(3)],
-        MultiLayerPerceptron.Loss.MEAN_SQUARED_ERROR,
+        MultiLayerPerceptron.Loss.MEAN_SQUARED,
     )
 
     iris_test(model, scale=True, one_hot_encode=True, iterations=1000, learning_rate=0.1)

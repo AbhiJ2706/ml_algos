@@ -25,6 +25,7 @@ All algorithms implemented with gradient descent (where applicable).
 - Decision tree regressor
 - Bagging
 - Adaboost
+- Multilayer perceptron with Batch Gradient Descent ([math](https://github.com/AbhiJ2706/numpy_ann))
 
 ## Testing
 
