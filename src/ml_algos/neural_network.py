@@ -10,6 +10,8 @@ import math
 
 from enum import Enum
 
+from ml_algos.regression_test import real_estate_test
+
 
 class MultiLayerPerceptron(BaseModel):
     class Activation(Enum):
@@ -23,6 +25,10 @@ class MultiLayerPerceptron(BaseModel):
         RELU = {
             "function": lambda x: np.where(x >= 0, x, 0),
             "gradient": lambda x: np.where(x >= 0, x, 0) / x
+        }
+        LINEAR = {
+            "function": lambda x: x,
+            "gradient": lambda x: 1
         }
         TANH = {
             "function": lambda x: (np.exp(x) - np.exp(-x)) / (np.exp(x) + np.exp(-x)),
@@ -167,7 +173,6 @@ if __name__ == "__main__":
         [5, 3],
         [
             MultiLayerPerceptron.Activation.RELU,
-            MultiLayerPerceptron.Activation.RELU,
             MultiLayerPerceptron.Activation.SOFTMAX
         ],
         MultiLayerPerceptron.Loss.CROSS_ENTROPY,
@@ -196,4 +201,24 @@ if __name__ == "__main__":
         learning_rate=0.1, 
         backward_method=MultiLayerPerceptron.GradientDescentMethod.STOCHASTIC
     )
+
+    model = MultiLayerPerceptron(
+        10,
+        [64, 1],
+        [
+            MultiLayerPerceptron.Activation.RELU,
+            MultiLayerPerceptron.Activation.LINEAR
+        ],
+        MultiLayerPerceptron.Loss.MEAN_SQUARED,
+    )
+
+    real_estate_test(
+        model, 
+        scale=True,
+        reshape=True,
+        iterations=2500, 
+        learning_rate=0.001, 
+        backward_method=MultiLayerPerceptron.GradientDescentMethod.BATCH
+    )
+
     

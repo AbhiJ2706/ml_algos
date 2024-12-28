@@ -24,7 +24,7 @@ def salary_test(model: BaseModel, scale=False, **kwargs):
     plt.show()
 
 
-def real_estate_test(model: BaseModel, scale=False, **kwargs):
+def real_estate_test(model: BaseModel, scale=False, reshape=False, **kwargs):
     data = pd.read_csv("data/real_estate_dataset.csv")
     if scale:
         for col in data.columns:
@@ -35,8 +35,14 @@ def real_estate_test(model: BaseModel, scale=False, **kwargs):
     del X_test["ID"]
     del X_train["Price"]
     del X_test["Price"]
+
+    if reshape:
+        y_train = y_train.to_numpy().reshape(-1, 1)
     
     model.fit(X_train, y_train, **kwargs)
 
     y_pred = model.predict(X_test)
+    if reshape:
+        y_pred = y_pred.reshape(-1,)
+
     print(f"R2 score: {r2_score(y_test, y_pred)}, MSE: {mean_squared_error(y_test, y_pred)}")
