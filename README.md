@@ -26,6 +26,8 @@ All algorithms implemented with gradient descent (where applicable).
 - Bagging
 - Adaboost
 - Multilayer perceptron with Batch Gradient Descent ([math](https://github.com/AbhiJ2706/numpy_ann))
+- Multilayer perceptron with Minibatch Gradient Descent
+- Multilayer perceptron with Stochastic Gradient Descent
 
 ## Testing
 

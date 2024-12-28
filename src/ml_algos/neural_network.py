@@ -47,14 +47,12 @@ class MultiLayerPerceptron(BaseModel):
         layer_sizes: list[int], 
         activations: list[Activation], 
         loss: Loss,
-        weight_initialization: WeightInitialization = WeightInitialization.GLOROT,
-        backward_method: GradientDescentMethod = GradientDescentMethod.BATCH,
+        weight_initialization: WeightInitialization=WeightInitialization.GLOROT,
         verbose=False
     ):
         self.num_input_features = num_input_features
         self.layer_sizes = layer_sizes
         self.weight_initialization = weight_initialization
-        self.backward_method = backward_method
 
         w = [self.num_input_features] + layer_sizes
         self.W = [
@@ -103,14 +101,48 @@ class MultiLayerPerceptron(BaseModel):
             self.W[i] = self.W[i] - learning_rate * weight_gradients[i]
         return self.loss(H, y)
     
-    def __train(self, X: pd.DataFrame, y: np.ndarray, learning_rate):
+    def __train_batch(self, X: pd.DataFrame, y: np.ndarray, learning_rate: float):
         H = self.__forward(X)
         return self.__backward(H, y, learning_rate)
 
-    def _fit(self, X: pd.DataFrame, y: np.ndarray, iterations=100, learning_rate=0.1):
+    def __train_minibatch(self, X: pd.DataFrame, y: np.ndarray, learning_rate: float, batch_size: int):
+        num_batches = X.shape[0] // batch_size
+        total_loss = 0
+        for i in range(num_batches):
+            H = self.__forward(X.iloc[i:i + batch_size])
+            total_loss += self.__backward(H, y[i:i + batch_size, :], learning_rate)
+        return total_loss / num_batches
+    
+    def __train_stochastic(self, X: pd.DataFrame, y: np.ndarray, learning_rate: float, batch_size: int):
+        num_batches = X.shape[0] // batch_size
+        max_amount = num_batches * batch_size
+        total_loss = 0
+        sample_selection = np.random.choice(X.shape[0], max_amount, replace=False)
+        X_sampled = X.iloc[sample_selection]
+        y_sampled = y[sample_selection, :]
+        for i in range(num_batches):
+            H = self.__forward(X_sampled[i:i + batch_size])
+            total_loss += self.__backward(H, y_sampled[i:i + batch_size, :], learning_rate)
+        return total_loss / num_batches
+
+    def _fit(
+        self, 
+        X: pd.DataFrame, 
+        y: np.ndarray, 
+        iterations: int=100, 
+        learning_rate: 
+        float=0.1, 
+        batch_size: int=32, 
+        backward_method: GradientDescentMethod=GradientDescentMethod.BATCH
+    ):
         with trange(iterations) as pbar:
             for _ in pbar:
-                loss = self.__train(X, y, learning_rate)
+                if backward_method == MultiLayerPerceptron.GradientDescentMethod.BATCH:
+                    loss = self.__train_batch(X, y, learning_rate)
+                elif backward_method == MultiLayerPerceptron.GradientDescentMethod.MINIBATCH:
+                    loss = self.__train_minibatch(X, y, learning_rate, batch_size)
+                elif backward_method == MultiLayerPerceptron.GradientDescentMethod.STOCHASTIC:
+                    loss = self.__train_stochastic(X, y, learning_rate, batch_size)
                 pbar.set_description(f"Loss: {loss:.4f}")
     
     def _predict(self, X: pd.DataFrame):
@@ -126,4 +158,6 @@ if __name__ == "__main__":
     )
 
     iris_test(model, scale=True, one_hot_encode=True, iterations=1000, learning_rate=0.1)
+    iris_test(model, scale=True, one_hot_encode=True, iterations=1000, learning_rate=0.1, backward_method=MultiLayerPerceptron.GradientDescentMethod.MINIBATCH)
+    iris_test(model, scale=True, one_hot_encode=True, iterations=1000, learning_rate=0.1, backward_method=MultiLayerPerceptron.GradientDescentMethod.STOCHASTIC)
     
