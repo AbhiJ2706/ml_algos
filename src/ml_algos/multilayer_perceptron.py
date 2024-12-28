@@ -294,4 +294,24 @@ if __name__ == "__main__":
         backward_method=MultiLayerPerceptron.GradientDescentMethod.BATCH
     )
 
+    model = MultiLayerPerceptron(
+        10,
+        [64, 1],
+        [
+            MultiLayerPerceptron.Activation.RELU,
+            MultiLayerPerceptron.Activation.LINEAR
+        ],
+        MultiLayerPerceptron.Loss.MEAN_SQUARED,
+    )
+
+    real_estate_test(
+        model, 
+        scale=True,
+        reshape=True,
+        iterations=250, 
+        learning_rate=0.001, 
+        backward_method=MultiLayerPerceptron.GradientDescentMethod.STOCHASTIC,
+        optimizer=Optimizer(OptimizerType.MOMENTUM, momentum_rate=0.8)
+    )
+
     
