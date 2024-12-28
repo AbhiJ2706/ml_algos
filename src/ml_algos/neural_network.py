@@ -13,23 +13,35 @@ from enum import Enum
 
 class MultiLayerPerceptron(BaseModel):
     class Activation(Enum):
+        def _softmax_denominator(x):
+            return np.repeat(np.sum(np.exp(x), axis=1), x.shape[1]).reshape(-1, x.shape[1])
+        
         SIGMOID = {
             "function": lambda x: 1 / (1 + np.exp(-x)),
             "gradient": lambda x: (1 / (1 + np.exp(-x))) * (1 - (1 / (1 + np.exp(-x))))
         }
         RELU = {
-            "function": lambda x: np.max(x, 0),
-            "gradient": lambda x: np.max(x, 0) / x
+            "function": lambda x: np.where(x >= 0, x, 0),
+            "gradient": lambda x: np.where(x >= 0, x, 0) / x
         }
         TANH = {
             "function": lambda x: (np.exp(x) - np.exp(-x)) / (np.exp(x) + np.exp(-x)),
             "gradient": lambda x: 1 - (np.exp(x) - np.exp(-x)) ** 2 / (np.exp(x) + np.exp(-x)) ** 2
+        }
+        SOFTMAX = {
+            "function": lambda x: np.exp(x) / MultiLayerPerceptron.Activation._softmax_denominator(x),
+            "gradient": lambda x: ((np.exp(x) / MultiLayerPerceptron.Activation._softmax_denominator(x)) * 
+                                   (1 - np.exp(x) / MultiLayerPerceptron.Activation._softmax_denominator(x)))
         }
     
     class Loss(Enum):
         MEAN_SQUARED = {
             "function": lambda x, y: np.mean((x - y) ** 2),
             "gradient": lambda x, y: 2 * (x - y),
+        }
+        CROSS_ENTROPY = {
+            "function": lambda x, y: -np.sum(y * np.log(x)),
+            "gradient": lambda x, y: (x - y),
         }
     
     class WeightInitialization(Enum):
@@ -153,11 +165,35 @@ if __name__ == "__main__":
     model = MultiLayerPerceptron(
         4,
         [5, 3],
-        [MultiLayerPerceptron.Activation.SIGMOID for _ in range(3)],
-        MultiLayerPerceptron.Loss.MEAN_SQUARED,
+        [
+            MultiLayerPerceptron.Activation.RELU,
+            MultiLayerPerceptron.Activation.RELU,
+            MultiLayerPerceptron.Activation.SOFTMAX
+        ],
+        MultiLayerPerceptron.Loss.CROSS_ENTROPY,
     )
 
-    iris_test(model, scale=True, one_hot_encode=True, iterations=1000, learning_rate=0.1)
-    iris_test(model, scale=True, one_hot_encode=True, iterations=1000, learning_rate=0.1, backward_method=MultiLayerPerceptron.GradientDescentMethod.MINIBATCH)
-    iris_test(model, scale=True, one_hot_encode=True, iterations=1000, learning_rate=0.1, backward_method=MultiLayerPerceptron.GradientDescentMethod.STOCHASTIC)
+    iris_test(
+        model, 
+        scale=True, 
+        one_hot_encode=True, 
+        iterations=1000, 
+        learning_rate=0.1
+    )
+    iris_test(
+        model, 
+        scale=True, 
+        one_hot_encode=True, 
+        iterations=1000, 
+        learning_rate=0.1, 
+        backward_method=MultiLayerPerceptron.GradientDescentMethod.MINIBATCH
+    )
+    iris_test(
+        model, 
+        scale=True, 
+        one_hot_encode=True, 
+        iterations=1000, 
+        learning_rate=0.1, 
+        backward_method=MultiLayerPerceptron.GradientDescentMethod.STOCHASTIC
+    )
     
