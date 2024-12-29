@@ -30,6 +30,7 @@ All algorithms implemented with gradient descent (where applicable).
     - Minibatch Gradient Descent
     - Stochastic Gradient Descent
     - Momentum Optimizer
+    - RMSProp Optimizer
 
 ## Testing
 

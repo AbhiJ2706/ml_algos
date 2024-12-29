@@ -15,6 +15,7 @@ from enum import Enum
 class OptimizerType(Enum):
     DEFAULT = 0
     MOMENTUM = 1
+    RMSPROP = 2
 
 
 class Optimizer:
@@ -22,6 +23,47 @@ class Optimizer:
         self.optimizer_type = optimizer_type
         if optimizer_type == OptimizerType.MOMENTUM:
             self.momentum_rate = kwargs["momentum_rate"]
+            self.optimizer_fn = self.__momentum
+        elif optimizer_type == OptimizerType.RMSPROP:
+            self.beta = kwargs["beta"]
+            self.optimizer_fn = self.__rmsprop
+        elif optimizer_type == OptimizerType.DEFAULT:
+            self.optimizer_fn = self.__default
+    
+    def __call__(self, weight_gradients, learning_rate):
+        return self.optimizer_fn(weight_gradients, learning_rate)
+    
+    def __default(self, weight_gradients, learning_rate):
+        return weight_gradients, learning_rate
+    
+    def __momentum(self, weight_gradients, learning_rate):
+        previous_gradients = getattr(self, "previous_gradients", None)
+        if previous_gradients:
+            new_gradients = [
+                gradient + self.momentum_rate * prev for (gradient, prev) in zip(weight_gradients, previous_gradients)
+            ]
+        else:
+            new_gradients = weight_gradients
+        self.previous_gradients = new_gradients
+        return new_gradients, learning_rate
+    
+    def __rmsprop(self, weight_gradients, learning_rate):
+        previous_gradients = getattr(self, "previous_gradients", None)
+        if previous_gradients:
+            self.previous_gradients = [
+                self.beta * pg + (1 - self.beta) * wg ** 2 for (pg, wg) in zip(self.previous_gradients, weight_gradients)
+            ]
+        else:
+            self.previous_gradients = [
+                (1 - self.beta) * wg ** 2 for wg in weight_gradients
+            ]
+        learning_rates = [
+            learning_rate / np.sqrt(pg + 1e-8) for pg in self.previous_gradients
+        ]
+        weight_gradients = [
+            lr * wg for (lr, wg) in zip(learning_rates, weight_gradients)
+        ]
+        return weight_gradients, 1
 
 
 class MultiLayerPerceptron(BaseModel):
@@ -96,20 +138,6 @@ class MultiLayerPerceptron(BaseModel):
 
         super(MultiLayerPerceptron, self).__init__(verbose=verbose)
     
-    def __optimizer(self, weight_gradients: list[np.ndarray], optimizer: Optimizer):
-        if optimizer.optimizer_type == OptimizerType.MOMENTUM:
-            previous_gradients = getattr(self, "previous_gradients", None)
-            if previous_gradients:
-                new_gradients = [
-                    gradient + optimizer.momentum_rate * prev for (gradient, prev) in zip(weight_gradients, previous_gradients)
-                ]
-            else:
-                new_gradients = weight_gradients
-            self.previous_gradients = new_gradients
-            return new_gradients
-        
-        return weight_gradients
-    
     def __forward(self, X: pd.DataFrame):
         X_current = X.to_numpy()
         X_current = np.concatenate((X_current, np.ones((X_current.shape[0], 1))), axis=1)
@@ -139,7 +167,7 @@ class MultiLayerPerceptron(BaseModel):
                 dldH = dldH_1[:, :-1]
                 dldZ = dldH * self.activation_gradients[-i - 1](self.pre_activations[-i - 1])
         
-        weight_gradients = self.__optimizer(weight_gradients[::-1], optimizer)
+        weight_gradients, learning_rate = optimizer(weight_gradients[::-1], learning_rate)
         for i in range(len(self.W)):
             self.W[i] = self.W[i] - learning_rate * weight_gradients[i]
         return self.loss(H, y)
@@ -178,8 +206,7 @@ class MultiLayerPerceptron(BaseModel):
         X: pd.DataFrame, 
         y: np.ndarray, 
         iterations: int=100, 
-        learning_rate: 
-        float=0.1, 
+        learning_rate: float=0.1, 
         batch_size: int=32, 
         backward_method: GradientDescentMethod=GradientDescentMethod.BATCH,
         optimizer: Optimizer=Optimizer()
@@ -276,6 +303,26 @@ if __name__ == "__main__":
     )
 
     model = MultiLayerPerceptron(
+        4,
+        [5, 3],
+        [
+            MultiLayerPerceptron.Activation.RELU,
+            MultiLayerPerceptron.Activation.SOFTMAX
+        ],
+        MultiLayerPerceptron.Loss.CROSS_ENTROPY,
+    )
+
+    iris_test(
+        model, 
+        scale=True, 
+        one_hot_encode=True, 
+        iterations=100, 
+        learning_rate=0.1, 
+        backward_method=MultiLayerPerceptron.GradientDescentMethod.STOCHASTIC,
+        optimizer=Optimizer(OptimizerType.RMSPROP, beta=0.9)
+    )
+
+    model = MultiLayerPerceptron(
         10,
         [64, 1],
         [
@@ -313,5 +360,3 @@ if __name__ == "__main__":
         backward_method=MultiLayerPerceptron.GradientDescentMethod.STOCHASTIC,
         optimizer=Optimizer(OptimizerType.MOMENTUM, momentum_rate=0.8)
     )
-
-    
