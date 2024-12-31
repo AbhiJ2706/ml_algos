@@ -36,13 +36,13 @@ class Optimizer:
         elif optimizer_type == OptimizerType.DEFAULT:
             self.optimizer_fn = self.__default
     
-    def __call__(self, weight_gradients, learning_rate):
+    def __call__(self, weight_gradients: list[np.ndarray], learning_rate: float):
         return self.optimizer_fn(weight_gradients, learning_rate)
     
-    def __default(self, weight_gradients, learning_rate):
+    def __default(self, weight_gradients: list[np.ndarray], learning_rate: float):
         return weight_gradients, learning_rate
     
-    def __momentum(self, weight_gradients, learning_rate):
+    def __momentum(self, weight_gradients: list[np.ndarray], learning_rate: float):
         previous_gradients = getattr(self, "previous_gradients", None)
         if previous_gradients:
             new_gradients = [
@@ -53,7 +53,7 @@ class Optimizer:
         self.previous_gradients = new_gradients
         return new_gradients, learning_rate
     
-    def __rmsprop(self, weight_gradients, learning_rate):
+    def __rmsprop(self, weight_gradients: list[np.ndarray], learning_rate: float):
         previous_gradients = getattr(self, "previous_gradients", None)
         if previous_gradients:
             self.previous_gradients = [
@@ -71,7 +71,7 @@ class Optimizer:
         ]
         return weight_gradients, 1
     
-    def __adam(self, weight_gradients, learning_rate):
+    def __adam(self, weight_gradients: list[np.ndarray], learning_rate: float):
         first_moment = getattr(self, "first_moment", None)
         second_moment = getattr(self, "second_moment", None)
 
@@ -105,47 +105,112 @@ class Optimizer:
         return weight_gradients, 1
 
 
+class ActivationType(Enum):
+    SIGMOID = 0
+    RELU = 1
+    LINEAR = 2
+    TANH = 3
+    SOFTMAX = 4
+
+
+class Activation:
+    def __init__(self, activation_type: ActivationType):
+        self.activation_type = activation_type
+        if self.activation_type == ActivationType.SIGMOID:
+            self.function = self.__sigmoid
+            self.gradient = self.__sigmoid_gradient
+        elif self.activation_type == ActivationType.RELU:
+            self.function = self.__relu
+            self.gradient = self.__relu_gradient
+        elif self.activation_type == ActivationType.LINEAR:
+            self.function = self.__linear
+            self.gradient = self.__linear_gradient
+        elif self.activation_type == ActivationType.TANH:
+            self.function = self.__tanh
+            self.gradient = self.__tanh_gradient
+        elif self.activation_type == ActivationType.SOFTMAX:
+            self.function = self.__softmax
+            self.gradient = self.__softmax_gradient
+    
+    @staticmethod
+    def __softmax_denominator(x: np.ndarray):
+        return np.repeat(np.sum(np.exp(x), axis=1), x.shape[1]).reshape(-1, x.shape[1])
+    
+    @staticmethod
+    def __sigmoid(x: np.ndarray):
+        return 1 / (1 + np.exp(-x))
+
+    @staticmethod
+    def __sigmoid_gradient(x: np.ndarray):
+        return Activation.__sigmoid(x) * (1 - Activation.__sigmoid(x))
+    
+    @staticmethod
+    def __relu(x: np.ndarray):
+        return np.where(x >= 0, x, 0)
+
+    @staticmethod
+    def __relu_gradient(x: np.ndarray):
+        return np.where(x >= 0, x, 0) / x
+    
+    @staticmethod
+    def __linear(x: np.ndarray):
+        return x
+
+    @staticmethod
+    def __linear_gradient(_: np.ndarray):
+        return 1
+    
+    @staticmethod
+    def __tanh(x: np.ndarray):
+        return (np.exp(x) - np.exp(-x)) / (np.exp(x) + np.exp(-x))
+
+    @staticmethod
+    def __tanh_gradient(x: np.ndarray):
+        return 1 - Activation.__tanh(x) ** 2
+    
+    @staticmethod
+    def __softmax(x: np.ndarray):
+        return np.exp(x) / Activation.__softmax_denominator(x)
+
+    @staticmethod
+    def __softmax_gradient(x: np.ndarray):
+        return ((np.exp(x) / Activation.__softmax_denominator(x)) * 
+                (1 - np.exp(x) / Activation.__softmax_denominator(x)))
+
+
+class LossType(Enum):
+    MEAN_SQUARED = 0
+    CROSS_ENTROPY = 1
+
+
+class Loss:
+    def __init__(self, loss_type: LossType):
+        self.loss_type = loss_type
+        if self.loss_type == LossType.MEAN_SQUARED:
+            self.function = self.__mean_squared
+            self.gradient = self.__mean_squared_gradient
+        elif self.loss_type == LossType.CROSS_ENTROPY:
+            self.function = self.__cross_entropy
+            self.gradient = self.__cross_entropy_gradient
+    
+    @staticmethod
+    def __mean_squared(x: np.ndarray, y: np.ndarray):
+        return np.mean((x - y) ** 2)
+
+    @staticmethod
+    def __mean_squared_gradient(x: np.ndarray, y: np.ndarray):
+        return 2 * (x - y)
+
+    @staticmethod
+    def __cross_entropy(x: np.ndarray, y: np.ndarray):
+        return -np.sum(y * np.log(x))
+
+    @staticmethod
+    def __cross_entropy_gradient(x: np.ndarray, y: np.ndarray):
+        return (x - y)
+
+
 class MultiLayerPerceptron(BaseModel):
-    class Activation(Enum):
-        def _softmax_denominator(x):
-            return np.repeat(np.sum(np.exp(x), axis=1), x.shape[1]).reshape(-1, x.shape[1])
-        
-        SIGMOID = {
-            "function": lambda x: 1 / (1 + np.exp(-x)),
-            "gradient": lambda x: (1 / (1 + np.exp(-x))) * (1 - (1 / (1 + np.exp(-x))))
-        }
-        RELU = {
-            "function": lambda x: np.where(x >= 0, x, 0),
-            "gradient": lambda x: np.where(x >= 0, x, 0) / x
-        }
-        LINEAR = {
-            "function": lambda x: x,
-            "gradient": lambda x: 1
-        }
-        TANH = {
-            "function": lambda x: (np.exp(x) - np.exp(-x)) / (np.exp(x) + np.exp(-x)),
-            "gradient": lambda x: 1 - (np.exp(x) - np.exp(-x)) ** 2 / (np.exp(x) + np.exp(-x)) ** 2
-        }
-        SOFTMAX = {
-            "function": lambda x: np.exp(x) / MultiLayerPerceptron.Activation._softmax_denominator(x),
-            "gradient": lambda x: ((np.exp(x) / MultiLayerPerceptron.Activation._softmax_denominator(x)) * 
-                                   (1 - np.exp(x) / MultiLayerPerceptron.Activation._softmax_denominator(x)))
-        }
-    
-    class Loss(Enum):
-        MEAN_SQUARED = {
-            "function": lambda x, y: np.mean((x - y) ** 2),
-            "gradient": lambda x, y: 2 * (x - y),
-        }
-        CROSS_ENTROPY = {
-            "function": lambda x, y: -np.sum(y * np.log(x)),
-            "gradient": lambda x, y: (x - y),
-        }
-    
-    class WeightInitialization(Enum):
-        GLOROT = lambda n, size: np.random.uniform(-1 / math.sqrt(n), 1 / math.sqrt(n), size=size)
-        HE = lambda n, size: np.random.normal(0, 2 / n, size=size)
-    
     class GradientDescentMethod(Enum):
         BATCH = 0
         STOCHASTIC = 1
@@ -157,22 +222,21 @@ class MultiLayerPerceptron(BaseModel):
         layer_sizes: list[int], 
         activations: list[Activation], 
         loss: Loss,
-        weight_initialization: WeightInitialization=WeightInitialization.GLOROT,
         verbose=False
     ):
         self.num_input_features = num_input_features
         self.layer_sizes = layer_sizes
-        self.weight_initialization = weight_initialization
-
+        
+        weight_initialization = lambda n, size: np.random.uniform(-1 / math.sqrt(n), 1 / math.sqrt(n), size=size)
         w = [self.num_input_features] + layer_sizes
         self.W = [
-            self.weight_initialization(w[i] + 1, (w[i] + 1, w[i + 1])) for i in range(len(w) - 1)
+            weight_initialization(w[i] + 1, (w[i] + 1, w[i + 1])) for i in range(len(w) - 1)
         ]
 
-        self.activations = [func.value["function"] for func in activations]
-        self.activation_gradients = [func.value["gradient"] for func in activations]
-        self.loss = loss.value["function"]
-        self.loss_gradient = loss.value["gradient"]
+        self.activations = [func.function for func in activations]
+        self.activation_gradients = [func.gradient for func in activations]
+        self.loss = loss.function
+        self.loss_gradient = loss.gradient
         self.num_layers = len(self.layer_sizes)
 
         super(MultiLayerPerceptron, self).__init__(verbose=verbose)
@@ -269,10 +333,10 @@ if __name__ == "__main__":
         4,
         [5, 3],
         [
-            MultiLayerPerceptron.Activation.RELU,
-            MultiLayerPerceptron.Activation.SOFTMAX
+            Activation(ActivationType.RELU),
+            Activation(ActivationType.SOFTMAX),
         ],
-        MultiLayerPerceptron.Loss.CROSS_ENTROPY,
+        Loss(LossType.CROSS_ENTROPY)
     )
 
     iris_test(
@@ -287,10 +351,10 @@ if __name__ == "__main__":
         4,
         [5, 3],
         [
-            MultiLayerPerceptron.Activation.RELU,
-            MultiLayerPerceptron.Activation.SOFTMAX
+            Activation(ActivationType.RELU),
+            Activation(ActivationType.SOFTMAX),
         ],
-        MultiLayerPerceptron.Loss.CROSS_ENTROPY,
+        Loss(LossType.CROSS_ENTROPY)
     )
 
     iris_test(
@@ -306,10 +370,10 @@ if __name__ == "__main__":
         4,
         [5, 3],
         [
-            MultiLayerPerceptron.Activation.RELU,
-            MultiLayerPerceptron.Activation.SOFTMAX
+            Activation(ActivationType.RELU),
+            Activation(ActivationType.SOFTMAX),
         ],
-        MultiLayerPerceptron.Loss.CROSS_ENTROPY,
+        Loss(LossType.CROSS_ENTROPY)
     )
 
     iris_test(
@@ -325,10 +389,10 @@ if __name__ == "__main__":
         4,
         [5, 3],
         [
-            MultiLayerPerceptron.Activation.RELU,
-            MultiLayerPerceptron.Activation.SOFTMAX
+            Activation(ActivationType.RELU),
+            Activation(ActivationType.SOFTMAX),
         ],
-        MultiLayerPerceptron.Loss.CROSS_ENTROPY,
+        Loss(LossType.CROSS_ENTROPY)
     )
 
     iris_test(
@@ -345,10 +409,10 @@ if __name__ == "__main__":
         4,
         [5, 3],
         [
-            MultiLayerPerceptron.Activation.RELU,
-            MultiLayerPerceptron.Activation.SOFTMAX
+            Activation(ActivationType.RELU),
+            Activation(ActivationType.SOFTMAX),
         ],
-        MultiLayerPerceptron.Loss.CROSS_ENTROPY,
+        Loss(LossType.CROSS_ENTROPY)
     )
 
     iris_test(
@@ -365,10 +429,10 @@ if __name__ == "__main__":
         4,
         [5, 3],
         [
-            MultiLayerPerceptron.Activation.RELU,
-            MultiLayerPerceptron.Activation.SOFTMAX
+            Activation(ActivationType.RELU),
+            Activation(ActivationType.SOFTMAX),
         ],
-        MultiLayerPerceptron.Loss.CROSS_ENTROPY,
+        Loss(LossType.CROSS_ENTROPY)
     )
 
     iris_test(
@@ -385,10 +449,10 @@ if __name__ == "__main__":
         10,
         [64, 1],
         [
-            MultiLayerPerceptron.Activation.RELU,
-            MultiLayerPerceptron.Activation.LINEAR
+            Activation(ActivationType.RELU),
+            Activation(ActivationType.LINEAR),
         ],
-        MultiLayerPerceptron.Loss.MEAN_SQUARED,
+        Loss(LossType.MEAN_SQUARED)
     )
 
     real_estate_test(
@@ -404,10 +468,10 @@ if __name__ == "__main__":
         10,
         [64, 1],
         [
-            MultiLayerPerceptron.Activation.RELU,
-            MultiLayerPerceptron.Activation.LINEAR
+            Activation(ActivationType.RELU),
+            Activation(ActivationType.LINEAR),
         ],
-        MultiLayerPerceptron.Loss.MEAN_SQUARED,
+        Loss(LossType.MEAN_SQUARED)
     )
 
     real_estate_test(
