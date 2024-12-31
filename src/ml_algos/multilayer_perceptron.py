@@ -16,6 +16,7 @@ class OptimizerType(Enum):
     DEFAULT = 0
     MOMENTUM = 1
     RMSPROP = 2
+    ADAM = 3
 
 
 class Optimizer:
@@ -27,6 +28,11 @@ class Optimizer:
         elif optimizer_type == OptimizerType.RMSPROP:
             self.beta = kwargs["beta"]
             self.optimizer_fn = self.__rmsprop
+        elif optimizer_type == OptimizerType.ADAM:
+            self.beta1 = kwargs["beta1"]
+            self.beta2 = kwargs["beta2"]
+            self.iteration = 1
+            self.optimizer_fn = self.__adam
         elif optimizer_type == OptimizerType.DEFAULT:
             self.optimizer_fn = self.__default
     
@@ -63,6 +69,39 @@ class Optimizer:
         weight_gradients = [
             lr * wg for (lr, wg) in zip(learning_rates, weight_gradients)
         ]
+        return weight_gradients, 1
+    
+    def __adam(self, weight_gradients, learning_rate):
+        first_moment = getattr(self, "first_moment", None)
+        second_moment = getattr(self, "second_moment", None)
+
+        if first_moment is not None and second_moment is not None:
+            self.first_moment = [
+                self.beta1 * pg + (1 - self.beta1) * wg for (pg, wg) in zip(self.first_moment, weight_gradients)
+            ]
+            self.second_moment = [
+                self.beta2 * pg + (1 - self.beta2) * wg ** 2 for (pg, wg) in zip(self.second_moment, weight_gradients)
+            ]
+        else:
+            self.first_moment = [
+                (1 - self.beta1) * wg for wg in weight_gradients
+            ]
+            self.second_moment = [
+                (1 - self.beta2) * wg ** 2 for wg in weight_gradients
+            ]
+        
+        corrected_first_moment = [
+            wg / (1 - self.beta1 ** self.iteration) for wg in self.first_moment
+        ]
+        corrected_second_moment = [
+            wg / (1 - self.beta2 ** self.iteration) for wg in self.second_moment
+        ]
+        
+        weight_gradients = [
+            learning_rate * fm / (np.sqrt(sm) + 1e-8) for (fm, sm) in zip(corrected_first_moment, corrected_second_moment)
+        ]
+        self.iteration += 1
+
         return weight_gradients, 1
 
 
@@ -320,6 +359,26 @@ if __name__ == "__main__":
         learning_rate=0.1, 
         backward_method=MultiLayerPerceptron.GradientDescentMethod.STOCHASTIC,
         optimizer=Optimizer(OptimizerType.RMSPROP, beta=0.9)
+    )
+
+    model = MultiLayerPerceptron(
+        4,
+        [5, 3],
+        [
+            MultiLayerPerceptron.Activation.RELU,
+            MultiLayerPerceptron.Activation.SOFTMAX
+        ],
+        MultiLayerPerceptron.Loss.CROSS_ENTROPY,
+    )
+
+    iris_test(
+        model, 
+        scale=True, 
+        one_hot_encode=True, 
+        iterations=75, 
+        learning_rate=0.01, 
+        backward_method=MultiLayerPerceptron.GradientDescentMethod.STOCHASTIC,
+        optimizer=Optimizer(OptimizerType.ADAM, beta1=0.9, beta2=0.999)
     )
 
     model = MultiLayerPerceptron(

@@ -31,6 +31,7 @@ All algorithms implemented with gradient descent (where applicable).
     - Stochastic Gradient Descent
     - Momentum Optimizer
     - RMSProp Optimizer
+    - ADAM Optimizer
 
 ## Testing
 
