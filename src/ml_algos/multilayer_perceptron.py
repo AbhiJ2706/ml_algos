@@ -208,14 +208,15 @@ class Loss:
     @staticmethod
     def __cross_entropy_gradient(x: np.ndarray, y: np.ndarray):
         return (x - y)
+    
+
+class GradientDescentMethod(Enum):
+    BATCH = 0
+    STOCHASTIC = 1
+    MINIBATCH = 2
 
 
 class MultiLayerPerceptron(BaseModel):
-    class GradientDescentMethod(Enum):
-        BATCH = 0
-        STOCHASTIC = 1
-        MINIBATCH = 2
-
     def __init__(
         self, 
         num_input_features: int, 
@@ -316,11 +317,11 @@ class MultiLayerPerceptron(BaseModel):
     ):
         with trange(iterations) as pbar:
             for _ in pbar:
-                if backward_method == MultiLayerPerceptron.GradientDescentMethod.BATCH:
+                if backward_method == GradientDescentMethod.BATCH:
                     loss = self.__train_batch(X, y, learning_rate)
-                elif backward_method == MultiLayerPerceptron.GradientDescentMethod.MINIBATCH:
+                elif backward_method == GradientDescentMethod.MINIBATCH:
                     loss = self.__train_minibatch(X, y, learning_rate, batch_size)
-                elif backward_method == MultiLayerPerceptron.GradientDescentMethod.STOCHASTIC:
+                elif backward_method == GradientDescentMethod.STOCHASTIC:
                     loss = self.__train_stochastic(X, y, learning_rate, batch_size, optimizer)
                 pbar.set_description(f"Loss: {loss:.4f}")
     
@@ -363,7 +364,7 @@ if __name__ == "__main__":
         one_hot_encode=True, 
         iterations=1000, 
         learning_rate=0.1, 
-        backward_method=MultiLayerPerceptron.GradientDescentMethod.MINIBATCH
+        backward_method=GradientDescentMethod.MINIBATCH
     )
 
     model = MultiLayerPerceptron(
@@ -382,7 +383,7 @@ if __name__ == "__main__":
         one_hot_encode=True, 
         iterations=1000, 
         learning_rate=0.1, 
-        backward_method=MultiLayerPerceptron.GradientDescentMethod.STOCHASTIC
+        backward_method=GradientDescentMethod.STOCHASTIC
     )
 
     model = MultiLayerPerceptron(
@@ -401,7 +402,7 @@ if __name__ == "__main__":
         one_hot_encode=True, 
         iterations=100, 
         learning_rate=0.1, 
-        backward_method=MultiLayerPerceptron.GradientDescentMethod.STOCHASTIC,
+        backward_method=GradientDescentMethod.STOCHASTIC,
         optimizer=Optimizer(OptimizerType.MOMENTUM, momentum_rate=0.8)
     )
 
@@ -421,7 +422,7 @@ if __name__ == "__main__":
         one_hot_encode=True, 
         iterations=100, 
         learning_rate=0.1, 
-        backward_method=MultiLayerPerceptron.GradientDescentMethod.STOCHASTIC,
+        backward_method=GradientDescentMethod.STOCHASTIC,
         optimizer=Optimizer(OptimizerType.RMSPROP, beta=0.9)
     )
 
@@ -441,7 +442,7 @@ if __name__ == "__main__":
         one_hot_encode=True, 
         iterations=75, 
         learning_rate=0.01, 
-        backward_method=MultiLayerPerceptron.GradientDescentMethod.STOCHASTIC,
+        backward_method=GradientDescentMethod.STOCHASTIC,
         optimizer=Optimizer(OptimizerType.ADAM, beta1=0.9, beta2=0.999)
     )
 
@@ -461,7 +462,7 @@ if __name__ == "__main__":
         reshape=True,
         iterations=2500, 
         learning_rate=0.001, 
-        backward_method=MultiLayerPerceptron.GradientDescentMethod.BATCH
+        backward_method=GradientDescentMethod.BATCH
     )
 
     model = MultiLayerPerceptron(
@@ -480,6 +481,6 @@ if __name__ == "__main__":
         reshape=True,
         iterations=250, 
         learning_rate=0.001, 
-        backward_method=MultiLayerPerceptron.GradientDescentMethod.STOCHASTIC,
+        backward_method=GradientDescentMethod.STOCHASTIC,
         optimizer=Optimizer(OptimizerType.MOMENTUM, momentum_rate=0.8)
     )
